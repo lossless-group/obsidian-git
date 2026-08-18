@@ -3,10 +3,11 @@ import tsParser from "@typescript-eslint/parser";
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 import eslintPluginSvelte from "eslint-plugin-svelte";
+import { defineConfig } from "eslint/config";
 
-export default tseslint.config(
+export default defineConfig(
     {
-        ignores: ["**/node_modules/", "**/main.js"],
+        ignores: ["**/node_modules/", "**/main.js", "eslint.config.mjs", "esbuild.config.mjs"],
     },
     eslint.configs.recommended,
     ...tseslint.configs.recommendedTypeChecked,
@@ -44,6 +45,14 @@ export default tseslint.config(
         },
         rules: {
             "no-undef": "off",
+        },
+    },
+    {
+        files: ["eslint.config.mjs", "esbuild.config.mjs"],
+        languageOptions: {
+            parserOptions: {
+                projectService: false,
+            },
         },
     }
 );

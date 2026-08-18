@@ -1,7 +1,7 @@
 import type { Editor, MarkdownView, Menu } from "obsidian";
 import { DEFAULT_SETTINGS } from "src/constants";
-import type { LineAuthorSettings } from "src/lineAuthor/model";
-import { findGutterElementUnderMouse } from "src/lineAuthor/view/gutter/gutterElementSearch";
+import type { LineAuthorSettings } from "src/editor/lineAuthor/model";
+import { findGutterElementUnderMouse } from "src/editor/lineAuthor/view/gutter/gutterElementSearch";
 import { pluginRef } from "src/pluginGlobalRef";
 import type { BlameCommit } from "src/types";
 import { impossibleBranch } from "src/utils";
@@ -68,7 +68,7 @@ function addConfigurableLineAuthorSettings(
 
     if (key === "showCommitHash") {
         title = "Show commit hash";
-        actionNewValue = <LineAuthorSettings["showCommitHash"]>currentValue;
+        actionNewValue = currentValue;
     } else if (key === "authorDisplay") {
         const showOption = settings.lastShownAuthorDisplay ?? defaultValue;
         title = "Show author " + (currentlyShown ? currentValue : showOption);
@@ -104,7 +104,7 @@ export function enrichCommitInfoForContextMenu(
 ) {
     elt.setAttr(
         COMMIT_ATTR,
-        JSON.stringify(<CtxMenuCommitInfo>{
+        JSON.stringify({
             hash: commit.hash,
             isZeroCommit: commit.isZeroCommit,
             isWaitingGutter,

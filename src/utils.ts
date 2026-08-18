@@ -1,13 +1,15 @@
 import * as cssColorConverter from "css-color-converter";
 import { spawn, type SpawnOptionsWithoutStdio } from "child_process";
-import deepEqual from "deep-equal";
-import type { App, RGB, WorkspaceLeaf } from "obsidian";
+import type { App, ItemView, RGB, WorkspaceLeaf } from "obsidian";
 import { Keymap, Menu, moment, TFile } from "obsidian";
 import { BINARY_EXTENSIONS } from "./constants";
 
+type WorkspaceRootWithSide = {
+    readonly side?: "left" | "right";
+};
+
 export function assertNever(x: never): never {
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-    throw new Error(`Unexpected object: ${x}`);
+    throw new Error(`Unexpected object: ${String(x)}`);
 }
 
 export function plural(
@@ -49,6 +51,11 @@ export function getNewLeaf(
     return leaf;
 }
 
+export function getTooltipSide(leaf: WorkspaceLeaf): "left" | "right" {
+    const root = leaf.getRoot() as unknown as WorkspaceRootWithSide;
+    return root.side === "left" ? "right" : "left";
+}
+
 export function mayTriggerFileMenu(
     app: App,
     event: MouseEvent,
@@ -84,8 +91,7 @@ export function mayTriggerFileMenu(
  * During runtime, an error will be thrown, if executed.
  */
 export function impossibleBranch(x: never): never {
-    /* eslint-disable-next-line @typescript-eslint/restrict-plus-operands */
-    throw new Error("Impossible branch: " + x);
+    throw new Error(`Impossible branch: ${String(x)}`);
 }
 
 export function rgbToString(rgb: RGB): string {
@@ -108,10 +114,6 @@ export function momentToEpochSeconds(instant: moment.Moment): number {
 export function median(array: number[]): number | undefined {
     if (array.length === 0) return undefined;
     return array.slice().sort()[Math.floor(array.length / 2)];
-}
-
-export function strictDeepEqual<T>(a: T, b: T): boolean {
-    return deepEqual(a, b, { strict: true });
 }
 
 export function arrayProxyWithNewLength<T>(array: T[], length: number): T[] {
@@ -163,7 +165,7 @@ export function splitRemoteBranch(
     remoteBranch: string
 ): readonly [string, string | undefined] {
     const [remote, ...branch] = remoteBranch.split("/");
-    return [remote, branch.length === 0 ? undefined : branch.join("/")];
+    return [remote ?? "", branch.length === 0 ? undefined : branch.join("/")];
 }
 
 export function getDisplayPath(path: string): string {
@@ -250,6 +252,33 @@ export function convertPathToAbsoluteGitignoreRule({
     return escaped.replace(/\s(?=\s*$)/g, String.raw`\ `);
 }
 
+/**
+ * When hovering a link going to `to`, show the Obsidian hover-preview of that note.
+ *
+ * You probably have to hold down `Ctrl` when hovering the link for the preview to appear!
+ * @param  {MouseEvent} event
+ * @param  {YourView} view The view with the link being hovered
+ * @param  {string} to The basename of the note to preview.
+ * @template YourView The ViewType of your view
+ * @returns void
+ */
+export function hoverPreview<YourView extends ItemView>(
+    app: App,
+    event: MouseEvent,
+    view: YourView,
+    to: string
+): void {
+    const targetEl = event.target as HTMLElement;
+
+    app.workspace.trigger("hover-link", {
+        event,
+        source: view.getViewType(),
+        hoverParent: view,
+        targetEl,
+        linktext: to,
+    });
+}
+
 export function spawnAsync(
     command: string,
     args: string[],
@@ -282,7 +311,7 @@ export function spawnAsync(
             resolve({
                 error: new Error(err.message),
                 stdout: stdoutBuffer,
-                stderr: stdoutBuffer,
+                stderr: stderrBuffer,
                 code: 1,
             });
         });

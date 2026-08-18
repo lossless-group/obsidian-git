@@ -1,6 +1,6 @@
 <script lang="ts">
     import { setIcon, TFile } from "obsidian";
-    import { hoverPreview } from "obsidian-community-lib";
+    import { hoverPreview } from "src/utils";
     import type { GitManager } from "src/gitManager/gitManager";
     import type { FileStatusResult } from "src/types";
     import {
@@ -8,6 +8,7 @@
         fileOpenableInObsidian,
         getDisplayPath,
         getNewLeaf,
+        getTooltipSide,
         mayTriggerFileMenu,
     } from "src/utils";
     import type GitView from "../sourceControl";
@@ -20,10 +21,7 @@
 
     let { change, view, manager }: Props = $props();
     let buttons: HTMLElement[] = $state([]);
-    let side = $derived(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-        (view.leaf.getRoot() as any).side == "left" ? "right" : "left"
-    );
+    let side = $derived(getTooltipSide(view.leaf));
 
     $effect(() => {
         for (const b of buttons) if (b) setIcon(b, b.getAttr("data-icon")!);
@@ -41,7 +39,7 @@
     function hover(event: MouseEvent) {
         //Don't show previews of config- or hidden files.
         if (view.app.vault.getFileByPath(change.vaultPath)) {
-            hoverPreview(event, view, change.vaultPath);
+            hoverPreview(view.app, event, view, change.vaultPath);
         }
     }
 

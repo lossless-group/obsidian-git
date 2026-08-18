@@ -2,6 +2,185 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.39.0](https://github.com/Vinzent03/obsidian-git/compare/2.38.6...2.39.0) (2026-08-12)
+
+
+### Features
+
+* add option to squash unpushed commits before push ([#1104](https://github.com/Vinzent03/obsidian-git/issues/1104)) ([767a665](https://github.com/Vinzent03/obsidian-git/commit/767a66555bc7ad3a47bb74078a156c10cdd1a664))
+* add progress events no desktop ([d755aba](https://github.com/Vinzent03/obsidian-git/commit/d755aba7bd3263ea451cfe7591b7eea6a72b4898))
+* context menu with copy and paste in split diff view ([4ce0891](https://github.com/Vinzent03/obsidian-git/commit/4ce0891a0f139423b2eb94a4a970b3ab5fe54083)), closes [#1153](https://github.com/Vinzent03/obsidian-git/issues/1153)
+
+
+### Bug Fixes
+
+* add guards and notifications for no current branch ([e5869a3](https://github.com/Vinzent03/obsidian-git/commit/e5869a3bce0ac1f33450f3bf8584904c9ea1f38e))
+* add progress option before separating -- ([a35a19f](https://github.com/Vinzent03/obsidian-git/commit/a35a19f7ab51e16c4182c6380ee8f4e9f91a0479))
+* **automatics:** prevent rescheduling auto runs when plugin is unload… ([#1122](https://github.com/Vinzent03/obsidian-git/issues/1122)) ([b62f220](https://github.com/Vinzent03/obsidian-git/commit/b62f22067ecc65e68340ec348a86f675b31536b1))
+* **auto:** prevent immediate sync on startup when last backup time is missing ([#1114](https://github.com/Vinzent03/obsidian-git/issues/1114)) ([e883ed5](https://github.com/Vinzent03/obsidian-git/commit/e883ed5e11217c932d7363bde7f46d53066d0db1))
+* avoid misleading "Committed 0 files" notice ([#1103](https://github.com/Vinzent03/obsidian-git/issues/1103)) ([be21cdf](https://github.com/Vinzent03/obsidian-git/commit/be21cdfed623beb63d658a99a5659d669dee0d2e))
+* **events:** clean up EventsPerFilePath interval timer on plugin unload ([#1124](https://github.com/Vinzent03/obsidian-git/issues/1124)) ([93e2231](https://github.com/Vinzent03/obsidian-git/commit/93e2231c2a8875036b10b81510d3f9eaa58ac4f2))
+* **gitManager:** prevent naive path slicing and trailing slashes ([#1126](https://github.com/Vinzent03/obsidian-git/issues/1126)) ([8abc25d](https://github.com/Vinzent03/obsidian-git/commit/8abc25d05e5f4d24cdbe0ce0c0e416a9669e4d5f))
+* **git:** support recursive flag directly in rmdir for isomorphic-git ([#1116](https://github.com/Vinzent03/obsidian-git/issues/1116)) ([6f3bbb3](https://github.com/Vinzent03/obsidian-git/commit/6f3bbb3fae3ce8c84356b3f267ed0807f2ff24d5))
+* **isomorphicGit:** support root commits in diff generation ([#1127](https://github.com/Vinzent03/obsidian-git/issues/1127)) ([616fe86](https://github.com/Vinzent03/obsidian-git/commit/616fe86ffa52054529617d930b0f58478f73cc31))
+* **mobile:** apply git dir relative to base path instead of vault ([8123201](https://github.com/Vinzent03/obsidian-git/commit/8123201f3f6c9c129c2879f0a05c0ef6929f55ac))
+* **mobile:** flush index after concurrent staging ([691a872](https://github.com/Vinzent03/obsidian-git/commit/691a872bbb0c2dead1a5f727943d78565525f8f6))
+* **mobile:** stricter check for index file ([54174af](https://github.com/Vinzent03/obsidian-git/commit/54174aff35d9c540441c6e720a537363c9b625de))
+* **mobile:** use more vault fs apis and set ctime of cached index properly ([1d1a338](https://github.com/Vinzent03/obsidian-git/commit/1d1a338824e4f7d6e89742665ace5657456ed96f))
+* prevent corrupted packfiles from compressed fetch responses on mobile ([#1098](https://github.com/Vinzent03/obsidian-git/issues/1098)) ([0543b01](https://github.com/Vinzent03/obsidian-git/commit/0543b010e485632f9b8643aea39f0bb5046c7f18))
+* prevent initializing plugin on disabled device ([750e11c](https://github.com/Vinzent03/obsidian-git/commit/750e11c83d429c8e4dea22e2908ce208b421c301)), closes [#1111](https://github.com/Vinzent03/obsidian-git/issues/1111)
+* **promiseQueue:** prevent race conditions on clear and handle sync errors ([#1123](https://github.com/Vinzent03/obsidian-git/issues/1123)) ([4bf5589](https://github.com/Vinzent03/obsidian-git/commit/4bf55899239a12d3cf97c9b1b485f5557662f1f3))
+* properly compose debounced changes ([42cea82](https://github.com/Vinzent03/obsidian-git/commit/42cea821083fc4eca0bf291ec641623436f700f5)), closes [#1076](https://github.com/Vinzent03/obsidian-git/issues/1076)
+* **queue:** wrap onFinished in try-catch to prevent deadlock on callback error ([#1115](https://github.com/Vinzent03/obsidian-git/issues/1115)) ([2b5b1b7](https://github.com/Vinzent03/obsidian-git/commit/2b5b1b747a1f807e23a2daa3b8f498e5a6b6f7df))
+* **simpleGit:** use OS-specific path delimiter for PATH env variable ([#1121](https://github.com/Vinzent03/obsidian-git/issues/1121)) ([9d3bab9](https://github.com/Vinzent03/obsidian-git/commit/9d3bab9e1fd3732095b3abfd1f160baeedf7f5d5))
+* update changes status bar when focusing different view ([d8cc709](https://github.com/Vinzent03/obsidian-git/commit/d8cc709bf674646216d959ef3c2398f973d5bd3a))
+* **utils:** assign correct stderr variable in spawnAsync error handler ([#1120](https://github.com/Vinzent03/obsidian-git/issues/1120)) ([f075f90](https://github.com/Vinzent03/obsidian-git/commit/f075f90957797184e3ddefbb8dd48a3336700b66))
+
+### [2.38.6](https://github.com/Vinzent03/obsidian-git/compare/2.38.5...2.38.6) (2026-07-05)
+
+### [2.38.5](https://github.com/Vinzent03/obsidian-git/compare/2.38.4...2.38.5) (2026-06-14)
+
+### [2.38.4](https://github.com/Vinzent03/obsidian-git/compare/2.38.3...2.38.4) (2026-06-14)
+
+
+### Bug Fixes
+
+* binary writes in mobile git adapter ([#1090](https://github.com/Vinzent03/obsidian-git/issues/1090)) ([fea3659](https://github.com/Vinzent03/obsidian-git/commit/fea3659ce1305641a1fabbbd5f24c10cffc42377))
+* properly create div ([6b6f29f](https://github.com/Vinzent03/obsidian-git/commit/6b6f29fb7136f1b68582fe8f7d71f85c90606e10))
+* watch for non Obsidian files on desktop as well ([3155bd0](https://github.com/Vinzent03/obsidian-git/commit/3155bd070f5f780065a55f7773ffb0fd9bc9e7a1)), closes [#1088](https://github.com/Vinzent03/obsidian-git/issues/1088)
+
+### [2.38.3](https://github.com/Vinzent03/obsidian-git/compare/2.38.2...2.38.3) (2026-05-14)
+
+
+### Bug Fixes
+
+* create div element different for sign markers ([3815bd2](https://github.com/Vinzent03/obsidian-git/commit/3815bd23b93905de27fe13cf5a59499d418ee3ed))
+* store unimportant line author data in localstorage ([9c3f710](https://github.com/Vinzent03/obsidian-git/commit/9c3f710aa864e396864ab1a8f147544d876921df)), closes [#1075](https://github.com/Vinzent03/obsidian-git/issues/1075)
+
+### [2.38.2](https://github.com/Vinzent03/obsidian-git/compare/2.38.1...2.38.2) (2026-04-16)
+
+
+### Bug Fixes
+
+* add missing simple-git unsafe setting ([d5534da](https://github.com/Vinzent03/obsidian-git/commit/d5534dad695698b40fc4f03be13bb36094cc14c6)), closes [#1067](https://github.com/Vinzent03/obsidian-git/issues/1067)
+
+### [2.38.1](https://github.com/Vinzent03/obsidian-git/compare/2.38.0...2.38.1) (2026-04-12)
+
+
+### Bug Fixes
+
+* disable obscure for username question ([12c5313](https://github.com/Vinzent03/obsidian-git/commit/12c531364127ab33c08754ad1f58eda46f7f48c9)), closes [#1000](https://github.com/Vinzent03/obsidian-git/issues/1000)
+* prevent  "detached HEAD" state after using "Switch to remote branch" command ([#1052](https://github.com/Vinzent03/obsidian-git/issues/1052)) ([b0dea07](https://github.com/Vinzent03/obsidian-git/commit/b0dea07db29cb569c0e40e6c300d3f7eddcdd95a))
+* properly set absolute repo path for custom GIT_DIR ([0651d0b](https://github.com/Vinzent03/obsidian-git/commit/0651d0b82f3c8e636c60bd22b1c850e8facc7512))
+* recognize click on correct tree component in source control view ([27d0e54](https://github.com/Vinzent03/obsidian-git/commit/27d0e54c92b2c2bbf8784ba3aea8b84363d2bc8a)), closes [#1066](https://github.com/Vinzent03/obsidian-git/issues/1066)
+* run sh scripts on Windows using Git sh ([78bf00e](https://github.com/Vinzent03/obsidian-git/commit/78bf00e80197c74ac73425a2da0094e5f958d76b)), closes [#1045](https://github.com/Vinzent03/obsidian-git/issues/1045)
+* set GIT_WORK_TREE when using custom git directory ([#1064](https://github.com/Vinzent03/obsidian-git/issues/1064)) ([aee3e4f](https://github.com/Vinzent03/obsidian-git/commit/aee3e4f2e5030ddce5f9d4a8d4c17c41d518bc40))
+
+## [2.38.0](https://github.com/Vinzent03/obsidian-git/compare/2.37.1...2.38.0) (2026-03-04)
+
+
+### Features
+
+* Default {{hostname}} placeholder to OS hostname when not explicitly configured ([#1044](https://github.com/Vinzent03/obsidian-git/issues/1044)) ([1cc045d](https://github.com/Vinzent03/obsidian-git/commit/1cc045dbc2a93b33d6c0ef02e6752a889685efdd))
+
+
+### Bug Fixes
+
+* do not alter Obsidian's own process env vars ([b8bd1ec](https://github.com/Vinzent03/obsidian-git/commit/b8bd1ec521561f6888857852cb565f66cc6a2241)), closes [#1041](https://github.com/Vinzent03/obsidian-git/issues/1041)
+* handle having a config value defined multiple times ([8e15ddc](https://github.com/Vinzent03/obsidian-git/commit/8e15ddc3bc2ce27b8c0afbc736ccc0258daffe3b)), closes [#1038](https://github.com/Vinzent03/obsidian-git/issues/1038)
+* wrap buttons in source control view ([932b7a0](https://github.com/Vinzent03/obsidian-git/commit/932b7a0b617b4f09d70fa7f48072e13ecd5f7f05)), closes [#1011](https://github.com/Vinzent03/obsidian-git/issues/1011)
+
+### [2.37.1](https://github.com/Vinzent03/obsidian-git/compare/2.37.0...2.37.1) (2026-02-15)
+
+## [2.37.0](https://github.com/Vinzent03/obsidian-git/compare/2.36.1...2.37.0) (2026-02-13)
+
+
+### Features
+
+* add settings pane icon ([5ea08b8](https://github.com/Vinzent03/obsidian-git/commit/5ea08b874e2bfdc532e8e351921a4a3d97ff41bb))
+* allow empty default manual commit message ([#1022](https://github.com/Vinzent03/obsidian-git/issues/1022)) ([20c942e](https://github.com/Vinzent03/obsidian-git/commit/20c942e4780e9ed272c92824f89b703dd59f53db))
+* close hunk preview with escape key ([fd9bef8](https://github.com/Vinzent03/obsidian-git/commit/fd9bef871ceed52834cae41add670ed5d59420b5)), closes [#1027](https://github.com/Vinzent03/obsidian-git/issues/1027)
+* respect push.autoSetupRemote config ([bde2b3d](https://github.com/Vinzent03/obsidian-git/commit/bde2b3df909e4557e15591d6def20a80e15cec40)), closes [#1020](https://github.com/Vinzent03/obsidian-git/issues/1020)
+* set author info as html attribute in line author information ([fad0dae](https://github.com/Vinzent03/obsidian-git/commit/fad0dae28391cba62744103165ddf0a909fa1014)), closes [#1017](https://github.com/Vinzent03/obsidian-git/issues/1017)
+* show commit summary as tooltip in line author information ([8746e4a](https://github.com/Vinzent03/obsidian-git/commit/8746e4a4f9591a0f83c42d71b1cdb44911364f80))
+
+
+### Bug Fixes
+
+* some ssh askpass fixes ([b89d095](https://github.com/Vinzent03/obsidian-git/commit/b89d095a2b8a2b6ef943772c0d54602be74e6229)), closes [#994](https://github.com/Vinzent03/obsidian-git/issues/994)
+
+### [2.36.1](https://github.com/Vinzent03/obsidian-git/compare/2.36.0...2.36.1) (2026-01-11)
+
+
+### Bug Fixes
+
+* align font size in unified diff with Obsidian ([99b2522](https://github.com/Vinzent03/obsidian-git/commit/99b25224a0a38b2a9885ddada7bad6774e70cd7f)), closes [#1008](https://github.com/Vinzent03/obsidian-git/issues/1008)
+* align signs properly with different line heights ([5bdf09c](https://github.com/Vinzent03/obsidian-git/commit/5bdf09c464d25e6dfb8b685f64c2a3c5af901f79))
+* less gutter updates for same git result ([4da4c64](https://github.com/Vinzent03/obsidian-git/commit/4da4c647feded146f2e5896e20b50b2319415d0d))
+* obscure password prompt in isomorphic-git auth ([#1007](https://github.com/Vinzent03/obsidian-git/issues/1007)) ([174cad8](https://github.com/Vinzent03/obsidian-git/commit/174cad88ab81e232e6b14abaebe4482afefa3846))
+
+## [2.36.0](https://github.com/Vinzent03/obsidian-git/compare/2.35.2...2.36.0) (2026-01-04)
+
+
+### Features
+
+* buttons for hunk actions and display on click ([a3dcd02](https://github.com/Vinzent03/obsidian-git/commit/a3dcd02fba27afc895968af6df6e752c5f06842f))
+* command to preview hunk ([7f26cfe](https://github.com/Vinzent03/obsidian-git/commit/7f26cfe131b6ec47c2c361d510855a19a412bcaf))
+* display hunk changes inline ([f346cac](https://github.com/Vinzent03/obsidian-git/commit/f346cac94199b0a97fda8c8d7908765c075d6109))
+* go to prev/next hunk commands ([48d6658](https://github.com/Vinzent03/obsidian-git/commit/48d66580564fd4105291cdae56180d7e005a080a))
+* granular settings and change status bar ([29bd5ae](https://github.com/Vinzent03/obsidian-git/commit/29bd5ae0ff916b33b43bff028340ee476ad7b81c))
+* hunk actions ([1c32ceb](https://github.com/Vinzent03/obsidian-git/commit/1c32ceb038f112c674ed102dc78bf36a2c7018cf))
+* specify merge strategy in settings ([#934](https://github.com/Vinzent03/obsidian-git/issues/934)) ([d64e4d7](https://github.com/Vinzent03/obsidian-git/commit/d64e4d7dfa57a7f5fb2073f9ebaaa2643acefdf8))
+* stage hunk ([5f0a5a2](https://github.com/Vinzent03/obsidian-git/commit/5f0a5a2344b2d390e0da300f50ed88d0221ec1f6))
+* stage individual hunks from split diff view ([47e97c9](https://github.com/Vinzent03/obsidian-git/commit/47e97c9911655227de401d4da8eccbc160040f95))
+
+
+### Bug Fixes
+
+* detect another error message for offline mode ([387d4bd](https://github.com/Vinzent03/obsidian-git/commit/387d4bd895a5fd04df80cd0705705d93e7fce4bd)), closes [#990](https://github.com/Vinzent03/obsidian-git/issues/990)
+* disable staged hunks as their computation is not feasible ([5ff0fed](https://github.com/Vinzent03/obsidian-git/commit/5ff0fede7f15d4ae3e7e9e0b2c445ec1cced0d59))
+* don't discard ignored files ([5483881](https://github.com/Vinzent03/obsidian-git/commit/54838815eae722a386de17fff71a1434bc6d9f84)), closes [#1006](https://github.com/Vinzent03/obsidian-git/issues/1006)
+* don't remove dom elements in line authoring ([4b29d76](https://github.com/Vinzent03/obsidian-git/commit/4b29d76df035be329c55f5718a0542a85bf2f941))
+* escape file path for css selector ([c6fcbdf](https://github.com/Vinzent03/obsidian-git/commit/c6fcbdf7fa813bfcf3047fd41174d60ea3ffdbf1)), closes [#986](https://github.com/Vinzent03/obsidian-git/issues/986)
+* fallback to debounced diff for slow diffs ([cfac162](https://github.com/Vinzent03/obsidian-git/commit/cfac162d52cddc5b3435ae95277ea1a7cce8ba9c))
+* make diff buttons horizontal ([5d2627c](https://github.com/Vinzent03/obsidian-git/commit/5d2627c3b31ec233402c5cf58f3e86a292ee19a1))
+* only show non 0 numbers in change status bar ([9ee0c06](https://github.com/Vinzent03/obsidian-git/commit/9ee0c06c0d5595f89fdc371942a1f60692d87403))
+* properly disable signs via settings ([bda731b](https://github.com/Vinzent03/obsidian-git/commit/bda731b15f36f69219e54943be1caace6b5de47a))
+* properly manage extensions ([067144c](https://github.com/Vinzent03/obsidian-git/commit/067144cd3c6fddd88eb3c478de7baf6a46efb459))
+* properly show tooltip ([f5a48af](https://github.com/Vinzent03/obsidian-git/commit/f5a48afde5e6ce3a971f70a2b3866313045b3bd8))
+* refresh cached file index version every 10 seconds ([4ba53a4](https://github.com/Vinzent03/obsidian-git/commit/4ba53a428bc61285f1bec37112f2996f234dcc12))
+* reset changing an empty line ([9549bde](https://github.com/Vinzent03/obsidian-git/commit/9549bde6bd58f8186a558c5157a8f5ad3a9e4737))
+* reset new empty line ([8cf494e](https://github.com/Vinzent03/obsidian-git/commit/8cf494e7375b62c4ec3e4cdefc8310c53dca0e19))
+* select hunks and unstage no_nl_at_eof ([67ea27e](https://github.com/Vinzent03/obsidian-git/commit/67ea27e6925c901d6963ca27e7bf7a98a8bd29ed))
+* show signs for new hunks on refresh ([491784d](https://github.com/Vinzent03/obsidian-git/commit/491784d381528c4f168da2399d7327c37e55479f))
+* show tooltip for topdelete ([adae383](https://github.com/Vinzent03/obsidian-git/commit/adae383b0d661389d1e357a3e435d40f7025b939))
+* small fixes ([b90eeb8](https://github.com/Vinzent03/obsidian-git/commit/b90eeb8229620f2d613b6816212709ce1b87a199))
+* update settings description ([5e13e49](https://github.com/Vinzent03/obsidian-git/commit/5e13e492118c36beca22b4f138d7ec481a95f3ba))
+* update styling ([ebd9734](https://github.com/Vinzent03/obsidian-git/commit/ebd973471ddfa7e267ad85c442a89f9ef2dd1eb1))
+* use rem instead of px for dimensions ([60e11b7](https://github.com/Vinzent03/obsidian-git/commit/60e11b77ca2a49281d9c79ce45d7a858dfa7a905))
+
+### [2.35.2](https://github.com/Vinzent03/obsidian-git/compare/2.35.1...2.35.2) (2025-11-05)
+
+
+### Bug Fixes
+
+* catch aborted clone depth modal ([d11579c](https://github.com/Vinzent03/obsidian-git/commit/d11579c96932f0b2c16c7306c5a05cfbae2509b1))
+* only check files to be committed for big files ([91654ef](https://github.com/Vinzent03/obsidian-git/commit/91654ef1e0a29fe4b8e67612b25c314a2cb95eb9)), closes [#966](https://github.com/Vinzent03/obsidian-git/issues/966)
+* prepend custom PATH instead of append ([b8da471](https://github.com/Vinzent03/obsidian-git/commit/b8da471eaf342eb3450cc13cc7a3c57887c7e7d3)), closes [#981](https://github.com/Vinzent03/obsidian-git/issues/981)
+* save edits from split diff view for repo not in vault root ([71fe8dc](https://github.com/Vinzent03/obsidian-git/commit/71fe8dc1be54bfb2aa9dd3d1861b778c212a3a35)), closes [#985](https://github.com/Vinzent03/obsidian-git/issues/985)
+* trim git object result ([0f3d368](https://github.com/Vinzent03/obsidian-git/commit/0f3d368fea440f4a703ea8db21798c2af6d64557))
+
+### [2.35.1](https://github.com/Vinzent03/obsidian-git/compare/2.35.0...2.35.1) (2025-09-19)
+
+
+### Bug Fixes
+
+* correctly abort selection when no branch selected ([23c009a](https://github.com/Vinzent03/obsidian-git/commit/23c009a2e9d23f0be6c882b2b992248e24bcf2da))
+* don't collapse changed files on stage and add bottom padding ([3832059](https://github.com/Vinzent03/obsidian-git/commit/38320597ec712804eecc04dfcd64ce774963c303))
+* get last commit time on branch without commits ([73300a1](https://github.com/Vinzent03/obsidian-git/commit/73300a1bf7c6333ea389a6792f73ea412b7f751d))
+* Prevent jitter of refresh icon in mobile ([#941](https://github.com/Vinzent03/obsidian-git/issues/941)) ([180a314](https://github.com/Vinzent03/obsidian-git/commit/180a314ca65bf666a8e15aaa07dc0d6b1e1ec838))
+* refresh view when staging files from menu ([1bd92c3](https://github.com/Vinzent03/obsidian-git/commit/1bd92c3961ac311312ff20e9fa2e3067a95c0434))
+
 ## [2.35.0](https://github.com/Vinzent03/obsidian-git/compare/2.34.0...2.35.0) (2025-08-07)
 
 

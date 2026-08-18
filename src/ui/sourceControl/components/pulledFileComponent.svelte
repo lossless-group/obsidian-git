@@ -1,8 +1,13 @@
 <script lang="ts">
     import { TFile } from "obsidian";
-    import { hoverPreview } from "obsidian-community-lib";
+    import { hoverPreview } from "src/utils";
     import type { FileStatusResult } from "src/types";
-    import { getDisplayPath, getNewLeaf, mayTriggerFileMenu } from "src/utils";
+    import {
+        getDisplayPath,
+        getNewLeaf,
+        getTooltipSide,
+        mayTriggerFileMenu,
+    } from "src/utils";
     import type GitView from "../sourceControl";
 
     interface Props {
@@ -11,15 +16,12 @@
     }
 
     let { change, view }: Props = $props();
-    let side = $derived(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-        (view.leaf.getRoot() as any).side == "left" ? "right" : "left"
-    );
+    let side = $derived(getTooltipSide(view.leaf));
 
     function hover(event: MouseEvent) {
         //Don't show previews of config- or hidden files.
         if (view.app.vault.getAbstractFileByPath(change.vaultPath)) {
-            hoverPreview(event, view, change.vaultPath);
+            hoverPreview(view.app, event, view, change.vaultPath);
         }
     }
 

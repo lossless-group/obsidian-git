@@ -20,6 +20,7 @@ export const DEFAULT_SETTINGS: ObsidianGitSettings = {
     autoCommitOnlyStaged: false,
     disablePush: false,
     pullBeforePush: true,
+    squashCommitsBeforePush: false,
     disablePopups: false,
     showErrorNotices: true,
     disablePopupsForNoChanges: false,
@@ -27,6 +28,7 @@ export const DEFAULT_SETTINGS: ObsidianGitSettings = {
     showStatusBar: true,
     updateSubmodules: false,
     syncMethod: "merge",
+    mergeStrategy: "none",
     customMessageOnAutoBackup: false,
     autoBackupAfterFileChange: false,
     treeStructure: false,
@@ -44,6 +46,11 @@ export const DEFAULT_SETTINGS: ObsidianGitSettings = {
     authorInHistoryView: "hide",
     dateInHistoryView: false,
     diffStyle: "split",
+    hunks: {
+        showSigns: false,
+        hunkCommands: false,
+        statusBar: "disabled",
+    },
     lineAuthor: {
         show: false,
         followMovement: "inactive",
@@ -59,7 +66,6 @@ export const DEFAULT_SETTINGS: ObsidianGitSettings = {
         colorOld: { r: 120, g: 160, b: 255 },
         textColorCss: "var(--text-muted)", //  more pronounced than line numbers, but less than the content text
         ignoreWhitespace: false,
-        gutterSpacingFallbackLength: 5,
     },
 };
 
@@ -87,7 +93,7 @@ export const DIFF_VIEW_CONFIG = {
 };
 
 export const DEFAULT_WIN_GIT_PATH = "C:\\Program Files\\Git\\cmd\\git.exe";
-export const ASK_PASS_INPUT_FILE = "git_credentials_input";
+export const ASK_PASS_INPUT_FILE = ".git_credentials_input";
 export const ASK_PASS_SCRIPT_FILE = "obsidian_askpass.sh";
 
 export const ASK_PASS_SCRIPT = `#!/bin/sh

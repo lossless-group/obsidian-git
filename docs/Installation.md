@@ -60,6 +60,19 @@ $ flatpak run md.obsidian.Obsidian
 ```
 [Source of this snippet](https://github.com/flathub/md.obsidian.Obsidian/issues/5#issuecomment-736974662)
 
-## MacOS
+# MacOS
 
-Nothing specific.
+## Git Installation
+
+In order to install `git` on your Mac Computer please follow a suitable route explained in the [Official Git documentation](https://git-scm.com/install/mac)
+
+## Keychain
+
+Run the following to use the macOS keychain to store your credentials.
+
+```zsh
+git config --global credential.helper osxkeychain
+```
+
+>[!info]
+> You have to complete a **single authenticated action** (either clone, pull or push) after setting the helper in the terminal. Once done, you should be able to sync Obsidian without any issues.

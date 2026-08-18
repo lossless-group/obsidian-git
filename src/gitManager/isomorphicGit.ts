@@ -6,11 +6,12 @@ import type {
     GitHttpResponse,
     GitProgressEvent,
     HttpClient,
+    StatusRow,
     Walker,
-    WalkerMap,
+    WalkerEntry,
 } from "isomorphic-git";
 import git, { Errors, readBlob } from "isomorphic-git";
-import { Notice, requestUrl } from "obsidian";
+import { normalizePath, Notice, requestUrl } from "obsidian";
 import type ObsidianGit from "../main";
 import type {
     BranchInfo,
@@ -20,11 +21,12 @@ import type {
     UnstagedFile,
     WalkDifference,
 } from "../types";
-import { CurrentGitAction, type DiffFile } from "../types";
+import { GitOperation, type DiffFile } from "../types";
 import { GeneralModal } from "../ui/modals/generalModal";
 import { splitRemoteBranch, worthWalking } from "../utils";
 import { GitManager } from "./gitManager";
 import { MyAdapter } from "./myAdapter";
+import diff3Merge from "diff3";
 
 export class IsomorphicGit extends GitManager {
     private readonly FILE = 0;
@@ -33,7 +35,7 @@ export class IsomorphicGit extends GitManager {
     private readonly STAGE = 3;
     // Mapping from statusMatrix to git status codes based off git status --short
     // See: https://isomorphic-git.org/docs/en/statusMatrix
-    private readonly status_mapping = {
+    private readonly status_mapping: Readonly<Record<string, string>> = {
         "000": "  ",
         "003": "AD",
         "020": "??",
@@ -68,7 +70,9 @@ export class IsomorphicGit extends GitManager {
         return {
             fs: this.fs,
             dir: this.plugin.settings.basePath,
-            gitdir: this.plugin.settings.gitDir || undefined,
+            gitdir: this.plugin.settings.gitDir
+                ? this.getGitDirPath()
+                : undefined,
             onAuth: () => {
                 return {
                     username:
@@ -88,6 +92,7 @@ export class IsomorphicGit extends GitManager {
                     const password = await new GeneralModal(this.plugin, {
                         placeholder:
                             "Specify your password/personal access token",
+                        obscure: true,
                     }).openAndGetResult();
                     if (password) {
                         this.plugin.localStorage.setUsername(username);
@@ -117,16 +122,33 @@ export class IsomorphicGit extends GitManager {
                     const res = await requestUrl({
                         url,
                         method,
-                        headers,
+                        // Ask the server not to compress the response. The
+                        // packfile parser needs the exact raw bytes; if a
+                        // server or proxy gzips the response and the platform
+                        // does not transparently inflate it, the packfile is
+                        // persisted corrupted and only fails later with
+                        // "Packfile payload corrupted".
+                        headers: { "Accept-Encoding": "identity", ...headers },
                         body: collectedBody,
                         throw: false,
                     });
+
+                    // Defense in depth: if the response still arrived gzipped
+                    // (a server/proxy ignored the request and the platform did
+                    // not inflate it), inflate it ourselves. This is keyed on
+                    // the gzip magic bytes rather than the `Content-Encoding`
+                    // header on purpose: some platforms auto-inflate but leave
+                    // the header in place, and trusting it would double-inflate
+                    // and corrupt the body.
+                    const responseBuffer = await inflateIfGzipped(
+                        res.arrayBuffer
+                    );
 
                     return {
                         url,
                         method,
                         headers: res.headers,
-                        body: arrayBufferToAsyncIterator(res.arrayBuffer),
+                        body: arrayBufferToAsyncIterator(responseBuffer),
                         statusCode: res.status,
                         statusMessage: res.status.toString(),
                     };
@@ -155,7 +177,6 @@ export class IsomorphicGit extends GitManager {
             );
         }, 20000);
         try {
-            this.plugin.setPluginState({ gitAction: CurrentGitAction.status });
             const statusOpts = { ...this.getRepo() } as Parameters<
                 typeof git.statusMatrix
             >[0];
@@ -218,31 +239,32 @@ export class IsomorphicGit extends GitManager {
         message: string;
         amend?: boolean;
     }): Promise<undefined> {
-        try {
-            await this.checkAuthorInfo();
-            this.plugin.setPluginState({ gitAction: CurrentGitAction.commit });
-            const formatMessage = await this.formatCommitMessage(message);
-            const hadConflict = this.plugin.localStorage.getConflict();
-            let parent: string[] | undefined = undefined;
+        return this.withGitOperation(GitOperation.commit, async () => {
+            try {
+                await this.checkAuthorInfo();
+                const formatMessage = await this.formatCommitMessage(message);
+                const hadConflict = this.plugin.localStorage.getConflict();
+                let parent: string[] | undefined = undefined;
 
-            if (hadConflict) {
-                const branchInfo = await this.branchInfo();
-                parent = [branchInfo.current!, branchInfo.tracking!];
+                if (hadConflict) {
+                    const branchInfo = await this.branchInfo();
+                    parent = [branchInfo.current!, branchInfo.tracking!];
+                }
+
+                await this.wrapFS(
+                    git.commit({
+                        ...this.getRepo(),
+                        message: formatMessage,
+                        parent: parent,
+                    })
+                );
+                this.plugin.localStorage.setConflict(false);
+                return undefined;
+            } catch (error) {
+                this.plugin.displayError(error);
+                throw error;
             }
-
-            await this.wrapFS(
-                git.commit({
-                    ...this.getRepo(),
-                    message: formatMessage,
-                    parent: parent,
-                })
-            );
-            this.plugin.localStorage.setConflict(false);
-            return;
-        } catch (error) {
-            this.plugin.displayError(error);
-            throw error;
-        }
+        });
     }
 
     async stage(filepath: string, relativeToVault: boolean): Promise<void> {
@@ -254,7 +276,6 @@ export class IsomorphicGit extends GitManager {
             vaultPath = this.getRelativeVaultPath(filepath);
         }
         try {
-            this.plugin.setPluginState({ gitAction: CurrentGitAction.add });
             if (await this.app.vault.adapter.exists(vaultPath)) {
                 await this.wrapFS(
                     git.add({ ...this.getRepo(), filepath: gitPath })
@@ -281,32 +302,20 @@ export class IsomorphicGit extends GitManager {
     }): Promise<void> {
         try {
             if (status) {
-                await Promise.all(
-                    status.changed.map((file) =>
-                        file.workingDir !== "D"
-                            ? this.wrapFS(
-                                  git.add({
-                                      ...this.getRepo(),
-                                      filepath: file.path,
-                                  })
-                              )
-                            : git.remove({
-                                  ...this.getRepo(),
-                                  filepath: file.path,
-                              })
-                    )
+                await this.stageFiles(
+                    status.changed.map((file) => ({
+                        path: file.path,
+                        deleted: file.workingDir === "D",
+                    }))
                 );
             } else {
                 const filesToStage =
                     unstagedFiles ?? (await this.getUnstagedFiles(dir ?? "."));
-                await Promise.all(
-                    filesToStage.map(({ path, type }) =>
-                        type == "D"
-                            ? git.remove({ ...this.getRepo(), filepath: path })
-                            : this.wrapFS(
-                                  git.add({ ...this.getRepo(), filepath: path })
-                              )
-                    )
+                await this.stageFiles(
+                    filesToStage.map(({ path, type }) => ({
+                        path,
+                        deleted: type === "D",
+                    }))
                 );
             }
         } catch (error) {
@@ -315,9 +324,31 @@ export class IsomorphicGit extends GitManager {
         }
     }
 
+    private async stageFiles(
+        files: { path: string; deleted: boolean }[]
+    ): Promise<void> {
+        const results = await this.wrapFS(
+            Promise.allSettled(
+                files.map((file) =>
+                    file.deleted
+                        ? git.remove({
+                              ...this.getRepo(),
+                              filepath: file.path,
+                          })
+                        : git.add({
+                              ...this.getRepo(),
+                              filepath: file.path,
+                          })
+                )
+            )
+        );
+
+        const failure = results.find((result) => result.status === "rejected");
+        if (failure?.status === "rejected") throw failure.reason;
+    }
+
     async unstage(filepath: string, relativeToVault: boolean): Promise<void> {
         try {
-            this.plugin.setPluginState({ gitAction: CurrentGitAction.add });
             filepath = this.getRelativeRepoPath(filepath, relativeToVault);
             await this.wrapFS(
                 git.resetIndex({ ...this.getRepo(), filepath: filepath })
@@ -358,7 +389,6 @@ export class IsomorphicGit extends GitManager {
 
     async discard(filepath: string): Promise<void> {
         try {
-            this.plugin.setPluginState({ gitAction: CurrentGitAction.add });
             await this.wrapFS(
                 git.checkout({
                     ...this.getRepo(),
@@ -461,67 +491,108 @@ export class IsomorphicGit extends GitManager {
 
     async pull(): Promise<FileStatusResult[]> {
         const progressNotice = this.showNotice("Initializing pull");
-        try {
-            this.plugin.setPluginState({ gitAction: CurrentGitAction.pull });
+        return this.withGitOperation(GitOperation.pull, async () => {
+            try {
+                const localCommit = await this.resolveRef("HEAD");
+                await this.fetch();
+                const branchInfo = await this.branchInfo();
 
-            const localCommit = await this.resolveRef("HEAD");
-            await this.fetch();
-            const branchInfo = await this.branchInfo();
+                await this.checkAuthorInfo();
 
-            await this.checkAuthorInfo();
-
-            const mergeRes = await this.wrapFS(
-                git.merge({
-                    ...this.getRepo(),
-                    ours: branchInfo.current,
-                    theirs: branchInfo.tracking!,
-                    abortOnConflict: false,
-                })
-            );
-            if (!mergeRes.alreadyMerged) {
-                await this.wrapFS(
-                    git.checkout({
+                const mergeRes = await this.wrapFS(
+                    git.merge({
                         ...this.getRepo(),
-                        ref: branchInfo.current,
-                        onProgress: (progress) => {
-                            if (progressNotice !== undefined) {
-                                progressNotice.noticeEl.innerText =
-                                    this.getProgressText("Checkout", progress);
-                            }
-                        },
-                        remote: branchInfo.remote,
+                        ours: branchInfo.current,
+                        theirs: branchInfo.tracking!,
+                        abortOnConflict: false,
+                        mergeDriver:
+                            this.plugin.settings.mergeStrategy !== "none"
+                                ? ({ contents }) => {
+                                      const baseContent = contents[0]!;
+                                      const ourContent = contents[1]!;
+                                      const theirContent = contents[2]!;
+
+                                      const LINEBREAKS = /^.*(\r?\n|$)/gm;
+                                      const ours =
+                                          ourContent.match(LINEBREAKS) ?? [];
+                                      const base =
+                                          baseContent.match(LINEBREAKS) ?? [];
+                                      const theirs =
+                                          theirContent.match(LINEBREAKS) ?? [];
+                                      const result = diff3Merge(
+                                          ours,
+                                          base,
+                                          theirs
+                                      );
+                                      let mergedText = "";
+                                      for (const item of result) {
+                                          if (item.ok) {
+                                              mergedText += item.ok.join("");
+                                          }
+                                          if (item.conflict) {
+                                              mergedText +=
+                                                  this.plugin.settings
+                                                      .mergeStrategy === "ours"
+                                                      ? item.conflict.a.join("")
+                                                      : item.conflict.b.join(
+                                                            ""
+                                                        );
+                                          }
+                                      }
+                                      return { cleanMerge: true, mergedText };
+                                  }
+                                : undefined,
                     })
                 );
-            }
-            progressNotice?.hide();
+                if (!mergeRes.alreadyMerged) {
+                    await this.wrapFS(
+                        git.checkout({
+                            ...this.getRepo(),
+                            ref: branchInfo.current,
+                            onProgress: (progress) => {
+                                if (progressNotice !== undefined) {
+                                    progressNotice.setMessage(
+                                        this.getProgressText(
+                                            "Checkout",
+                                            progress
+                                        )
+                                    );
+                                }
+                            },
+                            remote: branchInfo.remote,
+                        })
+                    );
+                }
+                progressNotice?.hide();
 
-            const upstreamCommit = await this.resolveRef("HEAD");
-            const changedFiles = await this.getFileChangesCount(
-                localCommit,
-                upstreamCommit
-            );
-
-            this.showNotice("Finished pull", false);
-
-            return changedFiles.map<FileStatusResult>((file) => ({
-                path: file.path,
-                workingDir: "P",
-                index: "P",
-                vaultPath: this.getRelativeVaultPath(file.path),
-            }));
-        } catch (error) {
-            progressNotice?.hide();
-            if (error instanceof Errors.MergeConflictError) {
-                await this.plugin.handleConflict(
-                    error.data.filepaths.map((file) =>
-                        this.getRelativeVaultPath(file)
-                    )
+                const upstreamCommit = await this.resolveRef("HEAD");
+                const changedFiles = await this.getFileChangesCount(
+                    localCommit,
+                    upstreamCommit
                 );
-            }
 
-            this.plugin.displayError(error);
-            throw error;
-        }
+                this.showNotice("Finished pull", false);
+
+                return changedFiles.map<FileStatusResult>((file) => ({
+                    path: file.path,
+                    workingDir: "P",
+                    index: "P",
+                    vaultPath: this.getRelativeVaultPath(file.path),
+                }));
+            } catch (error) {
+                progressNotice?.hide();
+                if (error instanceof Errors.MergeConflictError) {
+                    await this.plugin.handleConflict(
+                        error.data.filepaths.map((file) =>
+                            this.getRelativeVaultPath(file)
+                        )
+                    );
+                }
+
+                this.plugin.displayError(error);
+                throw error;
+            }
+        });
     }
 
     async push(): Promise<number> {
@@ -529,37 +600,41 @@ export class IsomorphicGit extends GitManager {
             return 0;
         }
         const progressNotice = this.showNotice("Initializing push");
-        try {
-            this.plugin.setPluginState({ gitAction: CurrentGitAction.status });
-            const status = await this.branchInfo();
-            const trackingBranch = status.tracking;
-            const currentBranch = status.current;
-            const numChangedFiles = (
-                await this.getFileChangesCount(currentBranch!, trackingBranch!)
-            ).length;
+        return this.withGitOperation(GitOperation.push, async () => {
+            try {
+                const status = await this.branchInfo();
+                const trackingBranch = status.tracking;
+                const currentBranch = status.current;
+                const numChangedFiles = (
+                    await this.getFileChangesCount(
+                        currentBranch!,
+                        trackingBranch!
+                    )
+                ).length;
 
-            this.plugin.setPluginState({ gitAction: CurrentGitAction.push });
-            const remote = await this.getCurrentRemote();
+                const remote = await this.getCurrentRemote();
 
-            await this.wrapFS(
-                git.push({
-                    ...this.getRepo(),
-                    remote,
-                    onProgress: (progress) => {
-                        if (progressNotice !== undefined) {
-                            progressNotice.noticeEl.innerText =
-                                this.getProgressText("Pushing", progress);
-                        }
-                    },
-                })
-            );
-            progressNotice?.hide();
-            return numChangedFiles;
-        } catch (error) {
-            progressNotice?.hide();
-            this.plugin.displayError(error);
-            throw error;
-        }
+                await this.wrapFS(
+                    git.push({
+                        ...this.getRepo(),
+                        remote,
+                        onProgress: (progress) => {
+                            if (progressNotice !== undefined) {
+                                progressNotice.setMessage(
+                                    this.getProgressText("Pushing", progress)
+                                );
+                            }
+                        },
+                    })
+                );
+                progressNotice?.hide();
+                return numChangedFiles;
+            } catch (error) {
+                progressNotice?.hide();
+                this.plugin.displayError(error);
+                throw error;
+            }
+        });
     }
 
     async getUnpushedCommits(): Promise<number> {
@@ -595,7 +670,7 @@ export class IsomorphicGit extends GitManager {
 
     async checkRequirements(): Promise<"valid" | "missing-repo"> {
         const headExists = await this.plugin.app.vault.adapter.exists(
-            `${this.getRepo().dir}/.git/HEAD`
+            normalizePath(`${this.getGitDirPath()}/HEAD`)
         );
 
         return headExists ? "valid" : "missing-repo";
@@ -700,8 +775,9 @@ export class IsomorphicGit extends GitManager {
                     depth: depth,
                     onProgress: (progress) => {
                         if (progressNotice !== undefined) {
-                            progressNotice.noticeEl.innerText =
-                                this.getProgressText("Cloning", progress);
+                            progressNotice.setMessage(
+                                this.getProgressText("Cloning", progress)
+                            );
                         }
                     },
                 })
@@ -754,8 +830,9 @@ export class IsomorphicGit extends GitManager {
                 ...this.getRepo(),
                 onProgress: (progress: GitProgressEvent) => {
                     if (progressNotice !== undefined) {
-                        progressNotice.noticeEl.innerText =
-                            this.getProgressText("Fetching", progress);
+                        progressNotice.setMessage(
+                            this.getProgressText("Fetching", progress)
+                        );
                     }
                 },
                 remote: remote ?? (await this.getCurrentRemote()),
@@ -834,7 +911,7 @@ export class IsomorphicGit extends GitManager {
                 const completeMessage = log.commit.message.split("\n\n");
 
                 return {
-                    message: completeMessage[0],
+                    message: completeMessage[0] ?? "",
                     author: {
                         name: log.commit.author.name,
                         email: log.commit.author.email,
@@ -869,6 +946,12 @@ export class IsomorphicGit extends GitManager {
     updateBasePath(basePath: string): Promise<void> {
         this.getRepo().dir = basePath;
         return Promise.resolve();
+    }
+
+    private getGitDirPath(): string {
+        return normalizePath(
+            this.getRelativeVaultPath(this.plugin.settings.gitDir || ".git")
+        );
     }
 
     async updateUpstreamBranch(remoteBranch: string): Promise<void> {
@@ -913,12 +996,14 @@ export class IsomorphicGit extends GitManager {
         walkers: Walker[];
         dir?: string;
     }): Promise<WalkDifference[]> {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const res = await this.wrapFS(
-            git.walk({
+        return this.wrapFS(
+            typedWalk<WalkDifference>({
                 ...this.getRepo(),
                 trees: walkers,
-                map: async function (filepath, [A, B]) {
+                map: async function (
+                    filepath,
+                    [A, B]
+                ): Promise<WalkDifference | null | undefined> {
                     if (!worthWalking(filepath, base)) {
                         return null;
                     }
@@ -935,7 +1020,7 @@ export class IsomorphicGit extends GitManager {
                     const Boid = await B?.oid();
 
                     // determine modification type
-                    let type = "equal";
+                    let type: WalkDifference["type"] | "equal" = "equal";
                     if (Aoid !== Boid) {
                         type = "M";
                     }
@@ -962,7 +1047,6 @@ export class IsomorphicGit extends GitManager {
                 },
             })
         );
-        return res as WalkDifference[];
     }
 
     async getStagedFiles(
@@ -990,10 +1074,9 @@ export class IsomorphicGit extends GitManager {
         }, 20000);
         try {
             const repo = this.getRepo();
-            const res = await this.wrapFS<Promise<UnstagedFile[]>>(
+            const res = await this.wrapFS(
                 //Modified from `git.statusMatrix`
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-                git.walk({
+                typedWalk<UnstagedFile>({
                     ...repo,
                     trees: [git.WORKDIR(), git.STAGE()],
                     map: async function (
@@ -1100,7 +1183,7 @@ export class IsomorphicGit extends GitManager {
     ): Promise<string> {
         const vaultPath = this.getRelativeVaultPath(filePath);
 
-        const map: WalkerMap = async (file, [A]) => {
+        const map: TypedWalkerMap<Uint8Array> = async (file, [A]) => {
             if (filePath == file) {
                 const oid = await A!.oid();
                 const contents = await git.readBlob({
@@ -1109,6 +1192,7 @@ export class IsomorphicGit extends GitManager {
                 });
                 return contents.blob;
             }
+            return undefined;
         };
         if (hash) {
             const commitContent = await readBlob({
@@ -1127,17 +1211,21 @@ export class IsomorphicGit extends GitManager {
                 oid: hash,
             });
 
-            const previousContent = await readBlob({
-                ...this.getRepo(),
-                filepath: filePath,
-                oid: commit.commit.parent.first()!,
-            })
-                .then((headBlob) => new TextDecoder().decode(headBlob.blob))
-                .catch((err) => {
-                    if (err instanceof git.Errors.NotFoundError)
-                        return undefined;
-                    throw err;
-                });
+            const parentOid = commit.commit.parent.first();
+            let previousContent: string | undefined;
+            if (parentOid) {
+                previousContent = await readBlob({
+                    ...this.getRepo(),
+                    filepath: filePath,
+                    oid: parentOid,
+                })
+                    .then((headBlob) => new TextDecoder().decode(headBlob.blob))
+                    .catch((err) => {
+                        if (err instanceof git.Errors.NotFoundError)
+                            return undefined;
+                        throw err;
+                    });
+            }
 
             const diff = createPatch(
                 vaultPath,
@@ -1148,11 +1236,11 @@ export class IsomorphicGit extends GitManager {
         }
 
         const stagedBlob = (
-            (await git.walk({
+            await typedWalk<Uint8Array>({
                 ...this.getRepo(),
                 trees: [git.STAGE()],
                 map,
-            })) as Uint8Array[]
+            })
         ).first();
         const stagedContent = new TextDecoder().decode(stagedBlob);
 
@@ -1199,18 +1287,16 @@ export class IsomorphicGit extends GitManager {
         return new Date(date * 1000);
     }
 
-    private getFileStatusResult(
-        row: [string, 0 | 1, 0 | 1 | 2, 0 | 1 | 2 | 3]
-    ): FileStatusResult {
-        // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-        const status = (this.status_mapping as any)[
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            `${row[this.HEAD]}${row[this.WORKDIR]}${row[this.STAGE]}`
-        ] as string;
+    private getFileStatusResult(row: StatusRow): FileStatusResult {
+        const statusKey = `${row[this.HEAD]}${row[this.WORKDIR]}${row[this.STAGE]}`;
+        const status = this.status_mapping[statusKey];
+        if (status === undefined) {
+            throw new Error(`Unsupported status matrix row: ${statusKey}`);
+        }
         // status will always be two characters
         return {
-            index: status[0] == "?" ? "U" : status[0],
-            workingDir: status[1] == "?" ? "U" : status[1],
+            index: status[0] == "?" ? "U" : status[0] ?? " ",
+            workingDir: status[1] == "?" ? "U" : status[1] ?? " ",
             path: row[this.FILE],
             vaultPath: this.getRelativeVaultPath(row[this.FILE]),
         };
@@ -1233,38 +1319,37 @@ export class IsomorphicGit extends GitManager {
                 infinity ? this.noticeLength : undefined
             );
         }
+        return undefined;
     }
 }
 
-// All because we can't use (for await)...
+type TypedWalkerMap<T> = (
+    filename: string,
+    entries: Array<WalkerEntry | null>
+) => Promise<T | null | undefined>;
 
-// Convert a value to an Async Iterator
-// This will be easier with async generator functions.
+type TypedWalkOptions<T> = Omit<Parameters<typeof git.walk>[0], "map"> & {
+    map: TypedWalkerMap<T>;
+};
 
-/*eslint-disable */
-function fromValue(value: any) {
-    let queue = [value];
+async function typedWalk<T>(options: TypedWalkOptions<T>): Promise<T[]> {
+    const result: unknown = await git.walk(options);
+    if (!Array.isArray(result)) {
+        throw new TypeError("isomorphic-git walk returned a non-array result");
+    }
+    return result as T[];
+}
+
+function arrayBufferToAsyncIterator(
+    buffer: ArrayBuffer
+): AsyncIterableIterator<Uint8Array> {
+    const iterator = [new Uint8Array(buffer)].values();
     return {
-        next() {
-            return Promise.resolve({
-                done: queue.length === 0,
-                value: queue.pop(),
-            });
-        },
-        return() {
-            queue = [];
-            return {};
-        },
+        next: () => Promise.resolve(iterator.next()),
         [Symbol.asyncIterator]() {
             return this;
         },
     };
-}
-
-async function* arrayBufferToAsyncIterator(
-    buffer: ArrayBuffer
-): AsyncIterableIterator<Uint8Array> {
-    yield new Uint8Array(buffer);
 }
 
 async function asyncIteratorToArrayBuffer(
@@ -1281,4 +1366,27 @@ async function asyncIteratorToArrayBuffer(
 
     const response = new Response(stream);
     return await response.arrayBuffer();
+}
+
+// If `buffer` starts with the gzip magic bytes (0x1f 0x8b), inflate it and
+// return the decompressed bytes; otherwise return it unchanged. A valid git
+// smart-HTTP response body never starts with those bytes (it begins with an
+// ASCII pkt-line length or "PACK"), so this check is unambiguous. Keyed on the
+// content rather than the `Content-Encoding` header because some platforms
+// transparently inflate the body while leaving the header in place.
+async function inflateIfGzipped(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+    const bytes = new Uint8Array(buffer);
+    if (bytes.length < 2 || bytes[0] !== 0x1f || bytes[1] !== 0x8b) {
+        return buffer;
+    }
+    try {
+        const stream = new Blob([buffer])
+            .stream()
+            .pipeThrough(new DecompressionStream("gzip"));
+        return await new Response(stream).arrayBuffer();
+    } catch {
+        // If decompression is unavailable or fails, fall back to the original
+        // bytes so behavior is no worse than before.
+        return buffer;
+    }
 }

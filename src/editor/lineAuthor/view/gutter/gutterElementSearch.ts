@@ -1,4 +1,4 @@
-import { attachedGutterElements } from "src/lineAuthor/view/cache";
+import { attachedGutterElements } from "src/editor/lineAuthor/view/cache";
 
 const mouseXY = { x: -10, y: -10 };
 
@@ -25,6 +25,7 @@ export function findGutterElementUnderMouse(): HTMLElement | undefined {
     for (const elt of attachedGutterElements) {
         if (contains(elt, mouseXY)) return elt;
     }
+    return undefined;
 }
 
 function contains(elt: HTMLElement, pt: { x: number; y: number }): boolean {

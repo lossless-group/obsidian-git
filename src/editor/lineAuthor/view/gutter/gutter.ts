@@ -1,6 +1,6 @@
 import { GutterMarker } from "@codemirror/view";
 import { sha256 } from "js-sha256";
-import { moment } from "obsidian";
+import { moment, setTooltip } from "obsidian";
 import { DATE_FORMAT, DATE_TIME_FORMAT_MINUTES } from "src/constants";
 import type {
     LineAuthorDateTimeFormatOptions,
@@ -8,25 +8,25 @@ import type {
     LineAuthorSettings,
     LineAuthorTimezoneOption,
     LineAuthoring,
-} from "src/lineAuthor/model";
-import { latestSettings } from "src/lineAuthor/model";
+} from "src/editor/lineAuthor/model";
 import {
     attachedGutterElements,
     conditionallyUpdateLongestRenderedGutter,
     getLongestRenderedGutter,
     gutterInstances,
     recordRenderedAgeInDays,
-} from "src/lineAuthor/view/cache";
-import { enrichCommitInfoForContextMenu } from "src/lineAuthor/view/contextMenu";
-import { coloringBasedOnCommitAge } from "src/lineAuthor/view/gutter/coloring";
-import { chooseNewestCommit } from "src/lineAuthor/view/gutter/commitChoice";
+} from "src/editor/lineAuthor/view/cache";
+import { enrichCommitInfoForContextMenu } from "src/editor/lineAuthor/view/contextMenu";
+import { coloringBasedOnCommitAge } from "src/editor/lineAuthor/view/gutter/coloring";
+import { chooseNewestCommit } from "src/editor/lineAuthor/view/gutter/commitChoice";
 import type { BlameCommit } from "src/types";
 import {
     impossibleBranch,
     prefixOfLengthAsWhitespace,
     resizeToLength,
-    strictDeepEqual,
 } from "src/utils";
+import { isDeepStrictEqual } from "node:util";
+import { pluginRef } from "src/pluginGlobalRef";
 
 const VALUE_NOT_FOUND_FALLBACK = "-";
 
@@ -51,16 +51,12 @@ export class TextGutter extends GutterMarker {
     }
 
     toDOM() {
-        return document.createTextNode(this.text);
+        return activeDocument.createTextNode(this.text);
     }
 
     destroy(dom: HTMLElement): void {
         if (!dom) {
             return; // sometimes, it doesn't exist anymore.
-        }
-
-        if (!document.body.contains(dom)) {
-            dom.remove();
         }
     }
 }
@@ -126,9 +122,8 @@ export class LineAuthoringGutter extends GutterMarker {
         }
 
         // this is called frequently, when the gutter moves outside of the view.
-        if (!document.body.contains(dom)) {
+        if (!activeDocument.body.contains(dom)) {
             attachedGutterElements.delete(dom);
-            dom.remove();
         }
     }
 
@@ -175,7 +170,7 @@ export class LineAuthoringGutter extends GutterMarker {
     ) {
         const templateElt = window.createDiv();
 
-        templateElt.innerText = text;
+        templateElt.setText(text);
 
         const { color, daysSinceCommit } = coloringBasedOnCommitAge(
             commit?.author?.epochSeconds,
@@ -184,6 +179,14 @@ export class LineAuthoringGutter extends GutterMarker {
         );
 
         templateElt.style.backgroundColor = color;
+
+        templateElt.setAttribute("data-author", commit?.author?.name ?? "");
+        templateElt.setAttribute(
+            "data-author-email",
+            commit?.author?.email ?? ""
+        );
+
+        setTooltip(templateElt, commit?.summary ?? "");
 
         enrichCommitInfoForContextMenu(commit, isWaitingGutter, templateElt);
 
@@ -245,7 +248,7 @@ export class LineAuthoringGutter extends GutterMarker {
         let rendered;
         switch (authorDisplay) {
             case "initials": // take every words first letter captitalized
-                rendered = words.map((word) => word[0].toUpperCase()).join("");
+                rendered = words.map((word) => word[0]!.toUpperCase()).join("");
                 break;
             case "first name":
                 rendered = words.first() ?? VALUE_NOT_FOUND_FALLBACK;
@@ -261,7 +264,9 @@ export class LineAuthoringGutter extends GutterMarker {
         }
 
         // add trailing * if author and comitter are different.
-        if (!strictDeepEqual(nonZeroCommit?.author, nonZeroCommit?.committer)) {
+        if (
+            !isDeepStrictEqual(nonZeroCommit?.author, nonZeroCommit?.committer)
+        ) {
             rendered = rendered + DIFFERING_AUTHOR_COMMITTER_MARKER;
         }
 
@@ -361,7 +366,7 @@ export class LineAuthoringGutter extends GutterMarker {
         // This ensures, that the frequent UI updates with differing line author lengths
         // don't frequently shift the gutter size - which would also cause distracting UI updates.
         const desiredTextLength =
-            latestSettings.get()?.gutterSpacingFallbackLength ??
+            pluginRef.plugin!.localStorage.getGutterSpacingFallbackLength() ??
             toBeRenderedText.length;
 
         toBeRenderedText = resizeToLength(
@@ -391,7 +396,7 @@ export class LineAuthoringGutter extends GutterMarker {
  *
  * This function should be used instead of directly calling the constructor,
  * as we don't want to re-create the same instance multiple times, whenever the user
- * scrolls through a document. It simply stores the instances in the cache {@link gutterInstances}.
+ * scrolls through a activeDocument. It simply stores the instances in the cache {@link gutterInstances}.
  */
 export function lineAuthoringGutterMarker(
     la: Exclude<LineAuthoring, "untracked">,

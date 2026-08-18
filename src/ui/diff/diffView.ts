@@ -9,9 +9,9 @@ import type { DiffViewState } from "src/types";
 export default class DiffView extends ItemView {
     parser: DOMParser;
     gettingDiff = false;
-    state: DiffViewState;
-    gitRefreshRef: EventRef;
-    gitViewRefreshRef: EventRef;
+    state!: DiffViewState;
+    gitRefreshRef!: EventRef;
+    gitViewRefreshRef!: EventRef;
 
     constructor(
         leaf: WorkspaceLeaf,
@@ -20,6 +20,7 @@ export default class DiffView extends ItemView {
         super(leaf);
         this.parser = new DOMParser();
         this.navigation = true;
+        this.contentEl.addClass("git-diff");
         this.gitRefreshRef = this.app.workspace.on(
             "obsidian-git:status-changed",
             () => {
@@ -58,7 +59,7 @@ export default class DiffView extends ItemView {
     }
 
     getState(): Record<string, unknown> {
-        return this.state as unknown as Record<string, unknown>;
+        return this.state;
     }
 
     onClose(): Promise<void> {

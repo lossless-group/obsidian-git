@@ -1,4 +1,4 @@
-import type { LineAuthoring } from "src/lineAuthor/model";
+import type { LineAuthoring } from "src/editor/lineAuthor/model";
 import type { BlameCommit } from "src/types";
 
 /**
@@ -14,6 +14,7 @@ export function chooseNewestCommit(
 
     for (let line = startLine; line <= endLine; line++) {
         const currentHash = lineAuthoring.hashPerLine[line];
+        if (currentHash === undefined) continue;
         const currentCommit = lineAuthoring.commits.get(currentHash)!;
 
         if (

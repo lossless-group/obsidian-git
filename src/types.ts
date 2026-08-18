@@ -1,4 +1,12 @@
-import type { LineAuthorSettings } from "src/lineAuthor/model";
+import type { LineAuthorSettings } from "src/editor/lineAuthor/model";
+import type {
+    Editor,
+    EventRef,
+    MarkdownView,
+    Menu,
+    TFile,
+    WorkspaceLeaf,
+} from "obsidian";
 
 export interface ObsidianGitSettings {
     commitMessage: string;
@@ -14,6 +22,7 @@ export interface ObsidianGitSettings {
     autoPullOnBoot: boolean;
     autoCommitOnlyStaged: boolean;
     syncMethod: SyncMethod;
+    mergeStrategy: MergeStrategy;
     /**
      * Whether to push on commit-and-sync
      */
@@ -22,6 +31,12 @@ export interface ObsidianGitSettings {
      * Whether to pull on commit-and-sync
      */
     pullBeforePush: boolean;
+    /**
+     * Whether to squash all local unpushed commits into a single commit right
+     * before pushing on commit-and-sync. Only rewrites unpushed history, so no
+     * force-push is required. Desktop (SimpleGit) only.
+     */
+    squashCommitsBeforePush: boolean;
     /**
      * Whether messages from {@link ObsidianGit.displayMessage} should be shown
      */
@@ -65,6 +80,11 @@ export interface ObsidianGitSettings {
     authorInHistoryView: ShowAuthorInHistoryView;
     dateInHistoryView: boolean;
     diffStyle: "git_unified" | "split";
+    hunks: {
+        hunkCommands: boolean;
+        showSigns: boolean;
+        statusBar: "disabled" | "colored" | "monochrome";
+    };
 }
 
 /**
@@ -79,6 +99,8 @@ export function mergeSettingsByPriority(
 }
 
 export type SyncMethod = "rebase" | "merge" | "reset";
+
+export type MergeStrategy = "none" | "ours" | "theirs";
 
 export type ShowAuthorInHistoryView = "full" | "initials" | "hide";
 
@@ -216,16 +238,43 @@ export interface FileStatusResult {
 
 export interface PluginState {
     offlineMode: boolean;
-    gitAction: CurrentGitAction;
+    operation: GitOperation;
 }
 
-export enum CurrentGitAction {
+export interface GitProgress {
+    /**
+     * User-facing operation or phase label, e.g. "Fetching", "Pushing", or
+     * "Updating submodules".
+     */
+    action: string;
+    /**
+     * Git progress stage or manual phase detail, e.g. "receiving",
+     * "checking remote", or "merging". Git may emit multiple stages during one
+     * operation, and stages are not guaranteed to emit a final 100% event.
+     */
+    stage: string;
+    /**
+     * Stage-specific percentage reported by Git. Undefined for indeterminate
+     * phases where the plugin only knows that work is in progress.
+     */
+    progress?: number;
+    /**
+     * Number of stage items processed so far when reported by Git.
+     */
+    processed?: number;
+    /**
+     * Total number of stage items when reported by Git.
+     */
+    total?: number;
+}
+
+export enum GitOperation {
     idle,
-    status,
     pull,
-    add,
     commit,
     push,
+    fetch,
+    checkout,
 }
 
 export interface LogEntry {
@@ -321,10 +370,16 @@ export class NoNetworkError extends Error {
     }
 }
 
+export type ElectronWindow = Window & {
+    electron: {
+        shell: {
+            showItemInFolder(fullPath: string): void;
+        };
+    };
+};
+
 declare module "obsidian" {
     interface App {
-        loadLocalStorage(key: string): string | null;
-        saveLocalStorage(key: string, value: string | undefined): void;
         openWithDefaultApp(path: string): void;
         getTheme(): "obsidian" | "moonstone";
         viewRegistry: ViewRegistry;
@@ -342,6 +397,25 @@ declare module "obsidian" {
         getTypeByExtension(extension: string): string;
     }
     interface Workspace {
+        on(
+            name: "file-open",
+            callback: (file: TFile | null) => unknown,
+            ctx?: unknown
+        ): EventRef;
+        on(
+            name: "active-leaf-change",
+            callback: (leaf: WorkspaceLeaf | null) => unknown,
+            ctx?: unknown
+        ): EventRef;
+        on(
+            name: "editor-menu",
+            callback: (
+                menu: Menu,
+                editor: Editor,
+                view: MarkdownView
+            ) => unknown,
+            ctx?: unknown
+        ): EventRef;
         /**
          * Emitted when some git action has been completed and plugin has been refreshed
          */

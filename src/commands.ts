@@ -7,6 +7,7 @@ import { ChangedFilesModal } from "./ui/modals/changedFilesModal";
 import { GeneralModal } from "./ui/modals/generalModal";
 import { IgnoreModal } from "./ui/modals/ignoreModal";
 import { assertNever } from "./utils";
+import { togglePreviewHunk } from "./editor/signs/tooltip";
 
 export function addCommmands(plugin: ObsidianGit) {
     const app = plugin.app;
@@ -95,6 +96,7 @@ export function addCommmands(plugin: ObsidianGit) {
                     aFile: filePath,
                     aRef: "",
                 });
+                return true;
             }
         },
     });
@@ -104,6 +106,7 @@ export function addCommmands(plugin: ObsidianGit) {
         name: "Open file on GitHub",
         editorCallback: (editor, { file }) => {
             if (file) return openLineInGitHub(editor, file, plugin.gitManager);
+            return undefined;
         },
     });
 
@@ -112,6 +115,7 @@ export function addCommmands(plugin: ObsidianGit) {
         name: "Open file history on GitHub",
         editorCallback: (_, { file }) => {
             if (file) return openHistoryInGitHub(file, plugin.gitManager);
+            return undefined;
         },
     });
 
@@ -146,6 +150,7 @@ export function addCommmands(plugin: ObsidianGit) {
                 plugin
                     .addFileToGitignore(file!.path, file instanceof TFolder)
                     .catch((e) => plugin.displayError(e));
+                return true;
             }
         },
     });
@@ -232,6 +237,7 @@ export function addCommmands(plugin: ObsidianGit) {
                     requestCustomMessage: false,
                 });
             });
+            return true;
         },
     });
 
@@ -297,6 +303,7 @@ export function addCommmands(plugin: ObsidianGit) {
                 return file !== null;
             } else {
                 plugin.promiseQueue.addTask(() => plugin.stageFile(file!));
+                return true;
             }
         },
     });
@@ -310,6 +317,7 @@ export function addCommmands(plugin: ObsidianGit) {
                 return file !== null;
             } else {
                 plugin.promiseQueue.addTask(() => plugin.unstageFile(file!));
+                return true;
             }
         },
     });
@@ -473,6 +481,7 @@ export function addCommmands(plugin: ObsidianGit) {
                 plugin.tools
                     .runRawCommand()
                     .catch((e) => plugin.displayError(e));
+                return true;
             }
         },
     });
@@ -484,5 +493,82 @@ export function addCommmands(plugin: ObsidianGit) {
             plugin.settingsTab?.configureLineAuthorShowStatus(
                 !plugin.settings.lineAuthor.show
             ),
+    });
+
+    plugin.addCommand({
+        id: "reset-hunk",
+        name: "Reset hunk",
+        editorCheckCallback(checking, _, __) {
+            if (checking) {
+                return (
+                    plugin.settings.hunks.hunkCommands &&
+                    plugin.hunkActions.editor !== undefined
+                );
+            }
+
+            plugin.hunkActions.resetHunk();
+            return true;
+        },
+    });
+
+    plugin.addCommand({
+        id: "stage-hunk",
+        name: "Stage hunk",
+        editorCheckCallback: (checking, _, __) => {
+            if (checking) {
+                return (
+                    plugin.settings.hunks.hunkCommands &&
+                    plugin.hunkActions.editor !== undefined
+                );
+            }
+            plugin.promiseQueue.addTask(() => plugin.hunkActions.stageHunk());
+            return true;
+        },
+    });
+
+    plugin.addCommand({
+        id: "preview-hunk",
+        name: "Preview hunk",
+        editorCheckCallback: (checking, _, __) => {
+            if (checking) {
+                return (
+                    plugin.settings.hunks.hunkCommands &&
+                    plugin.hunkActions.editor !== undefined
+                );
+            }
+            const editor = plugin.hunkActions.editor!.editor;
+            togglePreviewHunk(editor);
+            return true;
+        },
+    });
+
+    plugin.addCommand({
+        id: "next-hunk",
+        name: "Go to next hunk",
+        editorCheckCallback: (checking, _, __) => {
+            if (checking) {
+                return (
+                    plugin.settings.hunks.hunkCommands &&
+                    plugin.hunkActions.editor !== undefined
+                );
+            }
+            plugin.hunkActions.goToHunk("next");
+            return true;
+        },
+    });
+
+    plugin.addCommand({
+        id: "prev-hunk",
+        name: "Go to previous hunk",
+        editorCheckCallback: (checking, _, __) => {
+            if (checking) {
+                return (
+                    plugin.settings.hunks.hunkCommands &&
+                    plugin.hunkActions.editor !== undefined
+                );
+            }
+            plugin.hunkActions.goToHunk("prev");
+            return true;
+        },
     });
 }

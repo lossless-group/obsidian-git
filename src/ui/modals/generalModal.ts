@@ -28,7 +28,7 @@ const generalModalConfigDefaults: GeneralModalConfig = {
 };
 
 export class GeneralModal extends SuggestModal<string> {
-    resolve: (
+    resolve!: (
         value: string | undefined | PromiseLike<string | undefined>
     ) => void;
     config: GeneralModalConfig;
@@ -62,7 +62,7 @@ export class GeneralModal extends SuggestModal<string> {
         }
     }
 
-    openAndGetResult(): Promise<string> {
+    openAndGetResult(): Promise<string | undefined> {
         return new Promise((resolve) => {
             this.resolve = resolve;
             this.open();
@@ -74,9 +74,11 @@ export class GeneralModal extends SuggestModal<string> {
     }
 
     onClose() {
-        void new Promise((resolve) => setTimeout(resolve, 10)).then(() => {
-            if (this.resolve) this.resolve(undefined);
-        });
+        void new Promise((resolve) => window.setTimeout(resolve, 10)).then(
+            () => {
+                if (this.resolve) this.resolve(undefined);
+            }
+        );
     }
 
     getSuggestions(query: string): string[] {

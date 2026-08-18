@@ -16,6 +16,7 @@
     import TreeComponent from "./components/treeComponent.svelte";
     import type GitView from "./sourceControl";
     import TooManyFilesComponent from "./components/tooManyFilesComponent.svelte";
+    import { onMount } from "svelte";
 
     interface Props {
         plugin: ObsidianGit;
@@ -26,7 +27,7 @@
     let loading: boolean = $state(false);
     let status: Status | undefined = $state();
     let lastPulledFiles: FileStatusResult[] = $state([]);
-    let commitMessage = $state(plugin.settings.commitMessage);
+    let commitMessage = $derived(plugin.settings.commitMessage);
     let buttons: HTMLElement[] = $state([]);
     let changeHierarchy: StatusRootTreeItem | undefined = $state();
     let stagedHierarchy: StatusRootTreeItem | undefined = $state();
@@ -39,24 +40,31 @@
     let unstagedClosed: Record<string, boolean> = $state({});
     let pulledClosed: Record<string, boolean> = $state({});
 
-    let showTree = $state(plugin.settings.treeStructure);
-    view.registerEvent(
-        view.app.workspace.on(
-            "obsidian-git:loading-status",
-            () => (loading = true)
-        )
-    );
-    view.registerEvent(
-        view.app.workspace.on(
-            "obsidian-git:status-changed",
-            () => void refresh().catch(console.error)
-        )
-    );
-    if (view.plugin.cachedStatus == undefined) {
-        view.plugin.refresh().catch(console.error);
-    } else {
-        refresh().catch(console.error);
-    }
+    let showTree = $derived(plugin.settings.treeStructure);
+    onMount(() => {
+        view.registerEvent(
+            view.app.workspace.on(
+                "obsidian-git:loading-status",
+                () => (loading = true)
+            )
+        );
+        view.registerEvent(
+            view.app.workspace.on(
+                "obsidian-git:status-changed",
+                () => void refresh().catch(console.error)
+            )
+        );
+        if (view.plugin.cachedStatus == undefined) {
+            view.plugin.refresh().catch(console.error);
+        } else {
+            refresh().catch(console.error);
+        }
+
+        view.scope = new Scope(plugin.app.scope);
+        view.scope.register(["Ctrl"], "Enter", (_: KeyboardEvent) =>
+            commitAndSync()
+        );
+    });
     $effect(() => {
         buttons.forEach((btn) => setIcon(btn, btn.getAttr("data-icon")!));
     });
@@ -82,11 +90,6 @@
             }
         });
     });
-
-    view.scope = new Scope(plugin.app.scope);
-    view.scope.register(["Ctrl"], "Enter", (_: KeyboardEvent) =>
-        commitAndSync()
-    );
 
     function commit() {
         loading = true;
@@ -175,7 +178,8 @@
         view.app.workspace.trigger("obsidian-git:refresh");
     }
 
-    function stageAll() {
+    function stageAll(event: MouseEvent) {
+        event.stopPropagation();
         loading = true;
         plugin.promiseQueue.addTask(() =>
             plugin.gitManager
@@ -184,7 +188,8 @@
         );
     }
 
-    function unstageAll() {
+    function unstageAll(event: MouseEvent) {
+        event.stopPropagation();
         loading = true;
         plugin.promiseQueue.addTask(() =>
             plugin.gitManager
@@ -274,7 +279,7 @@
                 bind:this={buttons[6]}
                 onclick={() => {
                     showTree = !showTree;
-                    setIcon(buttons[6], showTree ? "list" : "folder");
+                    setIcon(buttons[6]!, showTree ? "list" : "folder");
                     plugin.settings.treeStructure = showTree;
                     void plugin.saveSettings();
                 }}
@@ -296,8 +301,7 @@
             class="commit-msg-input"
             spellcheck="true"
             placeholder="Commit Message"
-            bind:value={commitMessage}
-        ></textarea>
+            bind:value={commitMessage}></textarea>
         {#if commitMessage}
             <div
                 class="git-commit-msg-clear-button"
