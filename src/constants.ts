@@ -6,8 +6,6 @@ export const DATE_TIME_FORMAT_SECONDS = `${DATE_FORMAT} HH:mm:ss`;
 
 export const GIT_LINE_AUTHORING_MOVEMENT_DETECTION_MINIMAL_LENGTH = 40;
 
-export const CONFLICT_OUTPUT_FILE = "conflict-files-obsidian-git.md";
-
 export const DEFAULT_SETTINGS: ObsidianGitSettings = {
     commitMessage: "vault backup: {{date}}",
     autoCommitMessage: "vault backup: {{date}}",
@@ -28,6 +26,7 @@ export const DEFAULT_SETTINGS: ObsidianGitSettings = {
     showStatusBar: true,
     updateSubmodules: false,
     syncMethod: "merge",
+    rebaseAutoStash: "enabled",
     mergeStrategy: "none",
     customMessageOnAutoBackup: false,
     autoBackupAfterFileChange: false,
@@ -36,6 +35,7 @@ export const DEFAULT_SETTINGS: ObsidianGitSettings = {
     basePath: "",
     differentIntervalCommitAndPush: false,
     changedFilesInStatusBar: false,
+    limitToVault: false,
     showedMobileNotice: false,
     refreshSourceControlTimer: 7000,
     showBranchStatusBar: true,
@@ -46,6 +46,8 @@ export const DEFAULT_SETTINGS: ObsidianGitSettings = {
     authorInHistoryView: "hide",
     dateInHistoryView: false,
     diffStyle: "split",
+    diffTimeout: 50,
+    autoStageOnEmptyIndex: true,
     hunks: {
         showSigns: false,
         hunkCommands: false,
@@ -79,6 +81,12 @@ export const HISTORY_VIEW_CONFIG = {
     type: "git-history-view",
     name: "History",
     icon: "history",
+};
+
+export const READ_ONLY_FILE_VIEW_CONFIG = {
+    type: "git-read-only-file-view",
+    name: "File at commit",
+    icon: "file-clock",
 };
 
 export const SPLIT_DIFF_VIEW_CONFIG = {

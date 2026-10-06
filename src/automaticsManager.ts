@@ -175,13 +175,18 @@ export default class AutomaticsManager {
                         }
                     }
                 }
-                const onlyStaged = this.plugin.settings.autoCommitOnlyStaged;
+                const mode = this.plugin.settings.autoCommitOnlyStaged
+                    ? "staged"
+                    : "all";
                 if (this.plugin.settings.differentIntervalCommitAndPush) {
-                    await this.plugin.commit({ fromAuto: true, onlyStaged });
+                    await this.plugin.gitActions.commit({
+                        fromAuto: true,
+                        mode,
+                    });
                 } else {
-                    await this.plugin.commitAndSync({
+                    await this.plugin.gitActions.commitAndSync({
                         fromAutoBackup: true,
-                        onlyStaged,
+                        mode,
                     });
                 }
                 return true;
@@ -209,7 +214,7 @@ export default class AutomaticsManager {
 
     private doAutoPull(): void {
         this.plugin.promiseQueue.addTask(
-            () => this.plugin.pullChangesFromRemote(),
+            () => this.plugin.gitActions.pullChangesFromRemote(),
             () => {
                 this.saveLastAuto(new Date(), "pull");
                 this.startAutoPull();
@@ -230,7 +235,7 @@ export default class AutomaticsManager {
 
     private doAutoPush(): void {
         this.plugin.promiseQueue.addTask(
-            () => this.plugin.push(),
+            () => this.plugin.gitActions.push(),
             () => {
                 this.saveLastAuto(new Date(), "push");
                 this.startAutoPush();
